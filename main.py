@@ -35,9 +35,18 @@ def expected(y1_margin, y2_margin, y1_votes, y2_votes, y1_county_votes, y1_count
     return adj_expected_county_ds - adj_expected_county_rs
 
 
-data = CsvReader().read("countypres_2000-2020.csv")
+def validate_data(data_csv, columns):
+    state_county_years = {(row[columns["state"]], row[columns["county_name"]], int(row[columns["year"]])) for row in data_csv}
+    for state_county in state_county_years:
+        state_county_rows = [d for d in data_csv if (d[columns["state"]], d[columns["county_name"]], int(d[columns["year"]])) == state_county]
+        total = state_county_rows[0][columns["totalvotes"]]
+        assert sum(int(row[columns["candidatevotes"]]) for row in state_county_rows) == int(total), (state_county, total, sum(int(row[columns["candidatevotes"]]) for row in state_county_rows))
+
+
+data = CsvReader().read("countypres_2000-2024.csv")
 # Data from https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/VOQCHQ
 #  I have cleaned the data slightly
+# validate_data(data.data, data.columns)
 data_list = [row for row in data.data if row[data.columns["party"]] in TWO_PARTIES]
 
 counties = {}
@@ -63,11 +72,30 @@ for row in data_list:
     total_party_votes[row[data.columns["year"]]][row[data.columns["party"]]] += int(row[data.columns["candidatevotes"]])
     years_set.add(row[data.columns["year"]])
 
+for county, county_data in counties.items():
+    # not sure what RI's federal precinct is.
+    # Broomfield County was founded in 2001.
+    # For some reason this data set splits out Kansas City's data after 2000.
+    # UOCAVA = overseas voters. AK's district 99 is overseas voters.
+    if county not in ["BROOMFIELD-CO", "MAINE UOCAVA-ME", "FEDERAL PRECINCT-RI", "DISTRICT 99-AK", "KANSAS CITY-MO"]:
+        assert set(county_data.keys()) == years_set, (county, county_data)
+
 years_list = sorted(list(years_set))
 county_swings = {}
 for county in counties.keys():
+    if county in ["MAINE UOCAVA-ME", "FEDERAL PRECINCT-RI", "DISTRICT 99-AK"]:
+        continue
     county_swings[county] = {}
     for year in years_list:
+        if county in ["BROOMFIELD-CO", "KANSAS CITY-MO"] and year == '2000':
+            for subsequent_year in [y for y in years_list if y > year]:
+                county_swings[county][f"{year}-{subsequent_year}"] = {
+                    "expected_margin": 0,
+                    "actual_margin": 0,
+                }
+                county_swings[county][f"{year}-{subsequent_year}"]["diff"] = 0
+                county_swings[county][f"{year}-{subsequent_year}"]["pct"] = 0
+            continue
         for subsequent_year in [y for y in years_list if y > year]:
             county_swings[county][f"{year}-{subsequent_year}"] = {
                 "expected_margin": expected(
@@ -105,7 +133,8 @@ if name:
         y1, y2 = time.split('-')
         if int(y2) - int(y1) == 4:
             print(time, swing)
-    print("2012-2020", county_swings[name]["2012-2020"])
+    print("2012-2024", county_swings[name]["2012-2024"])
+    print("2016-2024", county_swings[name]["2016-2024"])
 
 states = {}
 for county, swings in county_swings.items():
