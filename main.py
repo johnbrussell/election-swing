@@ -94,6 +94,7 @@ for county in counties.keys():
                     "actual_margin": 0,
                 }
                 county_swings[county][f"{year}-{subsequent_year}"]["diff"] = 0
+                county_swings[county][f"{year}-{subsequent_year}"]["total"] = "0-0"
                 county_swings[county][f"{year}-{subsequent_year}"]["pct"] = 0
             continue
         for subsequent_year in [y for y in years_list if y > year]:
@@ -112,6 +113,8 @@ for county in counties.keys():
             county_swings[county][f"{year}-{subsequent_year}"]["diff"] = \
                 county_swings[county][f"{year}-{subsequent_year}"]["actual_margin"] - \
                 county_swings[county][f"{year}-{subsequent_year}"]["expected_margin"]
+            county_swings[county][f"{year}-{subsequent_year}"]["total"] = \
+                f"{int(sum(counties[county][year].values()))}-{int(sum(counties[county][subsequent_year].values()))}"
             county_swings[county][f"{year}-{subsequent_year}"]["pct"] = \
                 county_swings[county][f"{year}-{subsequent_year}"]["diff"] / \
                 float(sum(counties[county][year].values()))
@@ -147,7 +150,7 @@ for county, swings in county_swings.items():
                 if k != "pct":
                     states[county[-2:]][time][k] = 0
         for k in swing.keys():
-            if k != "pct":
+            if k != "pct" and k != "total":
                 states[county[-2:]][time][k] += swing[k]
 
 states_and_counties = {}
